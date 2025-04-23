@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+
+/* Asegura que Tailwind incluya estas clases */
+@layer utilities {
+  .bg-green-500 { background-color: #22c55e; }
+  .bg-yellow-400 { background-color: #facc15; }
+  .bg-gray-400 { background-color: #9ca3af; }
+}
