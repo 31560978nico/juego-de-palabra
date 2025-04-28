@@ -12,7 +12,6 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onRegister }) =
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [camaraActiva, setCamaraActiva] = useState(false);
 
-  // Limpieza de la cámara al desmontar
   useEffect(() => {
     return () => {
       if (videoRef.current?.srcObject) {
@@ -56,16 +55,13 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onRegister }) =
       const context = canvas.getContext('2d');
 
       if (context) {
-        // Ajustar tamaño del canvas al video
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // Reducir tamaño de la imagen para optimización
         const fotoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
         setFoto(fotoDataUrl);
 
-        // Detener la cámara
         const stream = video.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
         setCamaraActiva(false);
@@ -81,12 +77,12 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onRegister }) =
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
       <form 
         onSubmit={manejarRegistro} 
-        className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md animate-fade-in"
+        className="bg-white rounded-lg shadow-xl p-4 sm:p-6 w-full max-w-xs sm:max-w-sm md:max-w-md"
       >
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-center text-gray-800 mb-4 sm:mb-6">
           Registro del Jugador
         </h2>
         
@@ -100,23 +96,23 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onRegister }) =
             placeholder="Ingresa tu nombre"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 text-sm sm:text-base"
             required
             autoFocus
           />
         </div>
 
-        <div className="mb-6 flex flex-col items-center">
-          <div className="relative mb-4">
+        <div className="mb-4 sm:mb-6 flex flex-col items-center">
+          <div className="relative mb-3 sm:mb-4">
             {foto ? (
               <img
                 src={foto}
                 alt="Foto del jugador"
-                className="w-32 h-32 rounded-full object-cover border-4 border-purple-200"
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-purple-200"
               />
             ) : (
-              <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center">
-                <span className="text-gray-500">Sin foto</span>
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gray-200 flex items-center justify-center">
+                <span className="text-gray-500 text-sm">Sin foto</span>
               </div>
             )}
           </div>
@@ -137,15 +133,9 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onRegister }) =
               <button
                 type="button"
                 onClick={capturarFoto}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors text-sm sm:text-base"
               >
-                <span className="flex items-center justify-center">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Capturar foto
-                </span>
+                Capturar foto
               </button>
             </div>
           ) : (
@@ -153,19 +143,16 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onRegister }) =
               type="button"
               onClick={() => setCamaraActiva(true)}
               disabled={!!foto}
-              className={`px-4 py-2 rounded-md transition-colors ${foto ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              className={`px-4 py-2 rounded-md transition-colors text-sm sm:text-base ${
+                foto ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
-              <span className="flex items-center justify-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                </svg>
-                {foto ? 'Foto tomada' : 'Tomar foto'}
-              </span>
+              {foto ? 'Foto tomada' : 'Tomar foto'}
             </button>
           )}
         </div>
 
-        <div className="flex justify-between mt-6">
+        <div className="flex justify-between gap-2 mt-4 sm:mt-6">
           {foto && (
             <button
               type="button"
@@ -173,7 +160,7 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onRegister }) =
                 setFoto(null);
                 setCamaraActiva(false);
               }}
-              className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+              className="px-3 py-1 sm:px-4 sm:py-2 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm sm:text-base"
             >
               Eliminar foto
             </button>
@@ -182,7 +169,11 @@ const PlayerRegistration: React.FC<PlayerRegistrationProps> = ({ onRegister }) =
           <button
             type="submit"
             disabled={!nombre.trim()}
-            className={`ml-auto px-6 py-2 rounded-md font-medium transition-colors ${!nombre.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 text-white'}`}
+            className={`ml-auto px-4 py-1 sm:px-6 sm:py-2 rounded-md font-medium text-sm sm:text-base ${
+              !nombre.trim() 
+                ? 'bg-gray-300 cursor-not-allowed' 
+                : 'bg-purple-600 hover:bg-purple-700 text-white'
+            }`}
           >
             Comenzar juego
           </button>

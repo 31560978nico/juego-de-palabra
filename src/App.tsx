@@ -1,16 +1,48 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import confetti from 'canvas-confetti';
 import ErrorBoundary from './componentes/ErrorBoundary';
 import Tablero from './componentes/tablero';
 import Teclado from './componentes/teclado';
 import PlayerRegistration from './componentes/PlayerResgistration';
-import { manejarIntento } from './lib/manejarEstadisticas';
+import { manejarIntento, ResultadoLetra } from './lib/manejarEstadisticas';
 import { obtenerPalabraAleatoria } from './lib/palabra';
-import type { ResultadoLetra } from './lib/manejarEstadisticas';
+import './App.css';
 
 const LIMITE_PALABRAS = 5;
 
+const lanzarFuegosArtificiales = () => {
+  const duration = 3000;
+  const animationEnd = Date.now() + duration;
+  const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+  const randomInRange = (min: number, max: number) => {
+    return Math.random() * (max - min) + min;
+  };
+
+  const interval: any = setInterval(() => {
+    const timeLeft = animationEnd - Date.now();
+
+    if (timeLeft <= 0) {
+      return clearInterval(interval);
+    }
+
+    const particleCount = 50 * (timeLeft / duration);
+
+    confetti({
+      ...defaults,
+      particleCount,
+      origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+    });
+    confetti({
+      ...defaults,
+      particleCount,
+      origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+    });
+  }, 250);
+};
+
 const App: React.FC = () => {
-  const [intentos, setIntentos] = useState<ResultadoLetra[][]>([]);
+  const [intentos, setIntentos] = useState<{letras: string[], estados: ResultadoLetra[]}[]>([]);
   const [palabraActual, setPalabraActual] = useState('');
   const [tecladoColores, setTecladoColores] = useState<Record<string, 'green' | 'yellow' | 'gray' | 'default'>>({});
   const [jugador, setJugador] = useState<{ nombre: string; foto: string | null } | null>(null);
@@ -18,14 +50,9 @@ const App: React.FC = () => {
   const [juegoTerminado, setJuegoTerminado] = useState(false);
   const [palabrasJugadas, setPalabrasJugadas] = useState(0);
   const [sesionTerminada, setSesionTerminada] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Enfocar el input oculto al cargar, al registrarse y al iniciar nuevo juego
-  useEffect(() => {
-    if (inputRef.current && jugador) {
-      inputRef.current.focus();
-    }
-  }, [jugador, juegoTerminado, sesionTerminada]);
+  const [aciertos, setAciertos] = useState(0);
+  const [fallos, setFallos] = useState(0);
+  const [winAnimation, setWinAnimation] = useState(false);
 
   const iniciarNuevoJuego = useCallback(() => {
     if (palabrasJugadas >= LIMITE_PALABRAS) {
@@ -38,62 +65,64 @@ const App: React.FC = () => {
     setTecladoColores({});
     setJuegoTerminado(false);
     setPalabraActual('');
-    
-    // Asegurarse de que el input mantenga el foco
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 0);
+    setWinAnimation(false);
   }, [palabrasJugadas]);
 
   const reiniciarSesion = () => {
     setPalabrasJugadas(0);
     setSesionTerminada(false);
+    setAciertos(0);
+    setFallos(0);
     iniciarNuevoJuego();
-    
-    // Asegurarse de que el input mantenga el foco
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 0);
   };
 
   const enviarPalabra = useCallback(() => {
     if (palabraActual.length === 5 && !juegoTerminado) {
-      const { nuevosIntentos, nuevosColores } = manejarIntento(
+      const { nuevosEstados, nuevosColores } = manejarIntento(
         palabraActual,
         palabraSecreta,
-        intentos,
+        intentos.map(i => i.estados),
         tecladoColores
       );
-      setIntentos(nuevosIntentos);
+      
+      setIntentos(prev => [...prev, {
+        letras: palabraActual.split(''),
+        estados: nuevosEstados[nuevosEstados.length - 1]
+      }]);
+      
       setTecladoColores(nuevosColores);
       setPalabraActual('');
 
-      // Verificar si el jugador ganó o perdió
-      const ultimoIntento = nuevosIntentos[nuevosIntentos.length - 1];
+      const ultimoIntento = nuevosEstados[nuevosEstados.length - 1];
       const gano = ultimoIntento.every(resultado => resultado === 'correcta');
-      const perdio = nuevosIntentos.length === 6;
+      const perdio = nuevosEstados.length === 6;
 
       if (gano || perdio) {
         setJuegoTerminado(true);
         setPalabrasJugadas(prev => prev + 1);
-        setTimeout(() => {
-          alert(gano ? '¡Felicitaciones! ¡Has ganado!' : `Game Over. La palabra era: ${palabraSecreta}`);
-          inputRef.current?.focus();
-        }, 500);
+        
+        if (gano) {
+          setAciertos(prev => prev + 1);
+          setWinAnimation(true);
+          lanzarFuegosArtificiales();
+          setTimeout(() => {
+            alert('¡Felicitaciones! ¡Has adivinado la palabra!');
+          }, 500);
+        } else {
+          setFallos(prev => prev + 1);
+          setTimeout(() => {
+            alert(`Game Over. La palabra era: ${palabraSecreta}`);
+          }, 500);
+        }
       }
     }
   }, [palabraActual, intentos, tecladoColores, palabraSecreta, juegoTerminado]);
 
-  // Manejador para teclado en pantalla
   const handleKeyPress = useCallback((tecla: string) => {
-    if (sesionTerminada) {
-      return;
-    }
+    if (sesionTerminada) return;
 
     if (juegoTerminado) {
-      if (tecla === 'ENTER') {
-        iniciarNuevoJuego();
-      }
+      if (tecla === 'ENTER') iniciarNuevoJuego();
       return;
     }
 
@@ -104,9 +133,6 @@ const App: React.FC = () => {
     } else if (palabraActual.length < 5) {
       setPalabraActual(prev => prev + tecla);
     }
-    
-    // Mantener el foco en el input
-    inputRef.current?.focus();
   }, [juegoTerminado, sesionTerminada, palabraActual, enviarPalabra, iniciarNuevoJuego]);
 
   const handleRegister = (nombre: string, foto: string | null) => {
@@ -124,12 +150,24 @@ const App: React.FC = () => {
   if (sesionTerminada) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <h2 className="text-2xl font-bold mb-4">¡Sesión Terminada!</h2>
-          <p className="mb-4">Has completado tus {LIMITE_PALABRAS} palabras en esta sesión.</p>
+        <div className="bg-white p-6 sm:p-8 rounded-lg shadow-md text-center max-w-md w-full">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4">¡Sesión Terminada!</h2>
+          <div className="mb-6">
+            <p className="text-base sm:text-lg mb-2">Estadísticas finales:</p>
+            <div className="flex justify-center gap-4 sm:gap-6">
+              <div className="text-center">
+                <p className="text-xs sm:text-sm text-gray-600">Aciertos</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-500">{aciertos}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs sm:text-sm text-gray-600">Fallos</p>
+                <p className="text-xl sm:text-2xl font-bold text-red-500">{fallos}</p>
+              </div>
+            </div>
+          </div>
           <button
             onClick={reiniciarSesion}
-            className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
+            className="px-4 py-2 sm:px-6 sm:py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors w-full text-sm sm:text-base"
           >
             Iniciar Nueva Sesión
           </button>
@@ -139,84 +177,102 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="app min-h-screen bg-gray-100 p-4" onClick={() => inputRef.current?.focus()}>
-      <input
-        type="text"
-        ref={inputRef}
-        className="absolute opacity-0 h-0 w-0"
-        value={palabraActual}
-        onChange={(e) => {
-          const value = e.target.value.toUpperCase();
-          if (/^[A-ZÑ]{0,5}$/.test(value)) {
-            setPalabraActual(value);
-          }
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            if (juegoTerminado) {
-              iniciarNuevoJuego();
-            } else if (palabraActual.length === 5) {
-              enviarPalabra();
-            }
-            e.preventDefault();
-          } else if (e.key === 'Backspace') {
-            setPalabraActual(prev => prev.slice(0, -1));
-            e.preventDefault();
-          }
-        }}
-        onBlur={() => {
-          // Recuperar el foco cuando se pierde
-          setTimeout(() => {
-            inputRef.current?.focus();
-          }, 0);
-        }}
-      />
-
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
-        <div className="md:w-1/4 flex flex-col items-center">
-          {jugador.foto && (
-            <div className="mb-4">
+    <div className="min-h-screen bg-gray-100 p-4 md:p-6 lg:p-8">
+      <div className="max-w-md mx-auto w-full sm:w-11/12 md:w-5/6 lg:w-2/3">
+        {/* Encabezado con nombre y foto */}
+        <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 mb-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {jugador.foto && (
               <img 
                 src={jugador.foto} 
                 alt="Jugador" 
-                className="w-48 h-48 rounded-full object-cover border-4 border-purple-500"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-purple-500 object-cover"
               />
-              <h2 className="text-center mt-2 text-xl font-semibold">{jugador.nombre}</h2>
-            </div>
-          )}
-          <div className="mt-4 text-center">
-            <p className="text-lg">
-              Palabras restantes: <span className="font-bold">{LIMITE_PALABRAS - palabrasJugadas}</span>
-            </p>
+            )}
+            <span className="font-bold text-sm sm:text-base md:text-lg truncate max-w-[120px] sm:max-w-[180px]">
+              {jugador.nombre}
+            </span>
           </div>
-        </div>
-
-        <div className="md:w-3/4 flex flex-col items-center">
-          <h1 className="text-3xl font-bold mb-8">Wordle React</h1>
           
-          <ErrorBoundary>
-            <Tablero 
-              intentos={intentos}
-              palabraActual={palabraActual}
-            />
-          </ErrorBoundary>
-
-          <div className="mt-8">
-            <Teclado 
-              colores={tecladoColores}
-              onKeyPress={handleKeyPress}
-            />
+          <div className="flex space-x-3 sm:space-x-4">
+            <div className="text-center">
+              <p className="text-xs sm:text-sm text-gray-600">Aciertos</p>
+              <p className="text-sm sm:text-lg font-bold text-green-500">{aciertos}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs sm:text-sm text-gray-600">Fallos</p>
+              <p className="text-sm sm:text-lg font-bold text-red-500">{fallos}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs sm:text-sm text-gray-600">Restantes</p>
+              <p className="text-sm sm:text-lg font-bold text-purple-500">
+                {LIMITE_PALABRAS - palabrasJugadas}
+              </p>
+            </div>
           </div>
-
-          {juegoTerminado && !sesionTerminada && (
-            <button
-              onClick={iniciarNuevoJuego}
-              className="mt-4 px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors"
-            >
-              Jugar de nuevo
-            </button>
-          )}
         </div>
+
+        <h1 className="text-2xl sm:text-3xl font-bold text-center mb-4 sm:mb-6">Wordle React</h1>
+
+        <ErrorBoundary>
+          <div className={`mb-4 sm:mb-6 ${winAnimation ? 'win-animation' : ''}`}>
+            <Tablero intentos={intentos} />
+          </div>
+        </ErrorBoundary>
+
+        {/* Campo de entrada visible */}
+        <div className="mb-4 sm:mb-6 bg-white p-4 rounded-lg shadow-md">
+          <div className="flex justify-center items-center gap-2 mb-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div 
+                key={`input-${i}`}
+                className={`w-10 h-12 sm:w-12 sm:h-14 border-2 rounded flex items-center justify-center text-xl font-bold uppercase
+                  ${palabraActual[i] ? 'border-purple-500 bg-purple-50' : 'border-gray-300'}`}
+              >
+                {palabraActual[i] || ''}
+              </div>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={palabraActual}
+            onChange={(e) => {
+              const value = e.target.value.toUpperCase();
+              if (/^[A-ZÑ]{0,5}$/.test(value)) {
+                setPalabraActual(value);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && palabraActual.length === 5) {
+                enviarPalabra();
+                e.preventDefault();
+              }
+            }}
+            className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center uppercase text-lg"
+            maxLength={5}
+            autoFocus
+            placeholder="Escribe aquí"
+          />
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Escribe tu palabra de 5 letras y presiona Enter
+          </p>
+        </div>
+
+        <div className="mt-4 sm:mt-6">
+          <Teclado 
+            colores={tecladoColores}
+            onKeyPress={handleKeyPress}
+          />
+        </div>
+
+        {juegoTerminado && !sesionTerminada && (
+          <button
+            onClick={iniciarNuevoJuego}
+            className="mt-4 sm:mt-6 w-full py-2 sm:py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium text-sm sm:text-base"
+          >
+            Jugar de nuevo
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,28 +1,28 @@
 import React from 'react';
-// Importa ResultadoLetra desde su fuente original
-import type { ResultadoLetra } from '../lib/validarPalabra';
+import type { ResultadoLetra } from '../lib/manejarEstadisticas';
+
 interface CeldaProps {
   letra: string;
-  estado?: 'correcta' | 'posicion' | 'incorrecta';
-  esActual?: boolean;
+  estado?: ResultadoLetra;
 }
 
-const Celda: React.FC<CeldaProps> = ({ letra, estado = 'incorrecta', esActual = false }) => {
-  const baseClasses = "w-12 h-12 border-2 flex items-center justify-center text-xl font-bold transition-all duration-200";
+const Celda: React.FC<CeldaProps> = ({ letra, estado = 'ausente' }) => {
+  const baseClasses = "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 border-2 flex items-center justify-center text-lg sm:text-xl font-bold transition-all duration-200";
   
-  const estadoClasses = esActual 
-    ? "border-gray-400 bg-white" 
-    : estado === 'correcta' 
+  const estadoClasses = 
+    estado === 'correcta' 
       ? 'bg-green-500 text-white border-green-500' 
-      : estado === 'posicion' 
+      : estado === 'presente' 
         ? 'bg-yellow-400 text-white border-yellow-400' 
-        : 'bg-gray-400 text-white border-gray-400';
+        : estado === 'ausente'
+          ? 'bg-gray-400 text-white border-gray-400'
+          : 'bg-white border-gray-300';
 
   return (
     <div 
-      className={`${baseClasses} ${estadoClasses}`}
+      className={`${baseClasses} ${estadoClasses} ${!letra && 'animate-pulse'}`}
       role="gridcell"
-      aria-label={`Letra ${letra || 'vacía'}, ${estado}`}
+      aria-label={letra ? `Letra ${letra}, ${estado}` : 'Celda vacía'}
     >
       {letra}
     </div>
@@ -30,43 +30,58 @@ const Celda: React.FC<CeldaProps> = ({ letra, estado = 'incorrecta', esActual = 
 };
 
 interface TableroProps {
-  intentos: ResultadoLetra[][];
-  palabraActual?: string;
+  intentos: {letras: string[], estados: ResultadoLetra[]}[];
 }
 
 const LONGITUD_PALABRA = 5;
+const MAX_INTENTOS = 6;
 
-const Tablero: React.FC<TableroProps> = ({ 
-  intentos = [], 
-  palabraActual = '' 
-}) => {
-  const filasVacias = Array.from({ length: Math.max(0, LONGITUD_PALABRA - intentos.length) }, () =>
-    Array.from({ length: LONGITUD_PALABRA }, () => ({ letra: '', estado: 'incorrecta' as const }))
-  );
+const Tablero: React.FC<TableroProps> = ({ intentos = [] }) => {
+  // Filas completadas (con estados)
+  const filasCompletadas = intentos.map((intento, filaIndex) => (
+    <div 
+      key={`completed-${filaIndex}`} 
+      className="flex gap-1 justify-center"
+      role="row"
+      aria-label={`Intento ${filaIndex + 1}`}
+    >
+      {intento.estados.map((estado, letraIndex) => (
+        <Celda 
+          key={`completed-${filaIndex}-${letraIndex}`}
+          letra={intento.letras[letraIndex] || ''}
+          estado={estado}
+        />
+      ))}
+    </div>
+  ));
+
+  // Filas vacías restantes
+  const filasVacias = Array.from({ 
+    length: MAX_INTENTOS - intentos.length 
+  }).map((_, filaIndex) => (
+    <div 
+      key={`empty-${filaIndex}`} 
+      className="flex gap-1 justify-center"
+      role="row"
+      aria-label={`Intento vacío ${intentos.length + filaIndex + 1}`}
+    >
+      {Array.from({ length: LONGITUD_PALABRA }).map((_, letraIndex) => (
+        <Celda
+          key={`empty-${filaIndex}-${letraIndex}`}
+          letra=""
+        />
+      ))}
+    </div>
+  ));
 
   return (
-    <div className="grid gap-2 mb-6" role="grid">
-      {[...intentos, ...filasVacias].map((fila, filaIndex) => (
-        <div key={filaIndex} className="flex gap-1 justify-center" role="row">
-          {fila.map(({ letra, estado }, letraIndex) => (
-            <Celda 
-              key={`${filaIndex}-${letraIndex}`}
-              letra={letra}
-              estado={estado}
-            />
-          ))}
-        </div>
-      ))}
-      
-      <div className="flex gap-1 justify-center" role="row">
-        {Array.from({ length: LONGITUD_PALABRA }).map((_, i) => (
-          <Celda
-            key={`current-${i}`}
-            letra={palabraActual[i] || ''}
-            esActual={true}
-          />
-        ))}
-      </div>
+    <div 
+      className="grid gap-1 sm:gap-2 mb-4 sm:mb-6"
+      role="grid"
+      aria-label="Tablero de Wordle"
+    >
+      {filasCompletadas}
+      {filasVacias}
     </div>
   );
 };

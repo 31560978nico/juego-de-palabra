@@ -1,43 +1,78 @@
-import { ResultadoLetra, verificarIntento } from './validarPalabra';  
+export type ResultadoLetra = 'correcta' | 'presente' | 'ausente';
 
-// Tipos
-export type TeclaColor = 'green' | 'yellow' | 'gray' | 'default';
+interface ResultadoIntento {
+  nuevosEstados: ResultadoLetra[][];
+  nuevosColores: Record<string, 'green' | 'yellow' | 'gray' | 'default'>;
+}
 
-// Función para manejar un nuevo intento del jugador
+export function verificarPalabra(
+  palabraCorrecta: string, 
+  intento: string
+): ResultadoLetra[] {
+  // Validación de entrada
+  if (!palabraCorrecta || !intento || palabraCorrecta.length !== intento.length) {
+    console.error('Parámetros inválidos para verificarPalabra');
+    return Array(5).fill('ausente');
+  }
+
+  const resultado: ResultadoLetra[] = Array(palabraCorrecta.length).fill('ausente');
+  const letrasRestantes = palabraCorrecta.split('');
+
+  // Primero marcamos las letras correctas
+  for (let i = 0; i < palabraCorrecta.length; i++) {
+    if (intento[i] === palabraCorrecta[i]) {
+      resultado[i] = 'correcta';
+      letrasRestantes[i] = '';
+    }
+  }
+
+  // Luego marcamos las letras presentes en posición incorrecta
+  for (let i = 0; i < palabraCorrecta.length; i++) {
+    if (resultado[i] !== 'correcta') {
+      const indice = letrasRestantes.indexOf(intento[i]);
+      if (indice !== -1) {
+        resultado[i] = 'presente';
+        letrasRestantes[indice] = '';
+      }
+    }
+  }
+
+  return resultado;
+}
+
 export function manejarIntento(
-  palabra: string,
+  palabraActual: string,
   palabraSecreta: string,
-  intentosActuales: ResultadoLetra[][],
-  tecladoColoresActual: Record<string, TeclaColor>
-): { nuevosIntentos: ResultadoLetra[][]; nuevosColores: Record<string, TeclaColor> } {
-  
-  const palabraMayus = palabra.toUpperCase();
-  const resultado = verificarIntento(palabraMayus, palabraSecreta);
+  intentosAnteriores: ResultadoLetra[][] = [],
+  tecladoColoresAnteriores: Record<string, 'green' | 'yellow' | 'gray' | 'default'> = {}
+): ResultadoIntento {
+  // Validación de entrada
+  if (!palabraActual || !palabraSecreta || palabraActual.length !== palabraSecreta.length) {
+    console.error('Parámetros inválidos para manejarIntento');
+    return {
+      nuevosEstados: [...intentosAnteriores],
+      nuevosColores: {...tecladoColoresAnteriores}
+    };
+  }
 
-  const nuevosIntentos = [...intentosActuales, resultado];
-  const nuevosColores = { ...tecladoColoresActual };
+  const resultado = verificarPalabra(palabraSecreta, palabraActual);
+  const nuevosEstados = [...intentosAnteriores, resultado];
+  const nuevosColores = { ...tecladoColoresAnteriores };
 
-  resultado.forEach(({ letra, estado }) => {
-    if (estado === 'correcta') {
+  // Actualizar colores del teclado
+  palabraActual.split('').forEach((letra, i) => {
+    const resultadoLetra = resultado[i];
+    const colorActual = nuevosColores[letra];
+
+    // Solo actualizar si no es verde (prioridad a las letras correctas)
+    if (resultadoLetra === 'correcta') {
       nuevosColores[letra] = 'green';
-    } else if (estado === 'posicion' && nuevosColores[letra] !== 'green') {
+    } else if (resultadoLetra === 'presente' && colorActual !== 'green') {
       nuevosColores[letra] = 'yellow';
-    } else if (estado === 'incorrecta' && !nuevosColores[letra]) {
+    } else if (resultadoLetra === 'ausente' && !colorActual) {
       nuevosColores[letra] = 'gray';
     }
   });
 
-  return { nuevosIntentos, nuevosColores };
-}
-
-// Función para calcular estadísticas del juego
-export function calcularEstadisticas(intentos: ResultadoLetra[][]): {
-  aciertos: number;
-  intentosTotales: number;
-} {
-  const aciertos = intentos.filter(intento =>
-    intento.every(letra => letra.estado === 'correcta')
-  ).length;
-
-  return { aciertos, intentosTotales: intentos.length };
+  return { nuevosEstados, nuevosColores };
 }
